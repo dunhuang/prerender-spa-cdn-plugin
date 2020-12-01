@@ -16,7 +16,7 @@ export default {
   },
   async mounted () {
     try {
-      const data = await axios.get('http://api.abcd.com')
+      const data = await axios.get('https://statistic.liepin.com/statisticPlatform/tLog/v2?traceId=84260475377')
       this.msg = data
     } catch (e) {
       this.msg = e.message

@@ -9,7 +9,7 @@ module.exports = {
         staticDir: path.join(__dirname, 'dist'),
         routes: ['/', '/about'],
         browserProxyServer: {
-          bypassList: 'api.abcd.com'
+          bypassList: 'statistic.liepin.com'
         },
         rendererOptions: {
           maxConcurrentRoutes: 1,

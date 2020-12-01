@@ -16,23 +16,13 @@ var _require = require('html-minifier'),
     minify = _require.minify;
 
 var PortFinder = require('portfinder');
-var httpProxy = require('http-proxy');
+// const httpProxy = require('http-proxy')
+var express = require('express');
 
-function makeProxy(_ref) {
-  var serverPort = _ref.serverPort,
-      browserProxyPort = _ref.browserProxyPort,
-      browserProxyOptions = _ref.browserProxyOptions;
+var _require2 = require('http-proxy-middleware'),
+    createProxyMiddleware = _require2.createProxyMiddleware;
 
-  if (typeof browserProxyOptions === 'function') {
-    browserProxyOptions = browserProxyOptions(serverPort);
-  }
-  browserProxyOptions = browserProxyOptions || {
-    target: `http://localhost:${serverPort}`
-  };
-  return httpProxy.createServer(browserProxyOptions).listen(browserProxyPort);
-}
-
-function PrerenderSPAPlugin() {
+function PrerenderSPACdnPlugin() {
   var _this = this;
 
   this._options = {};
@@ -76,6 +66,7 @@ function PrerenderSPAPlugin() {
     rendererOptions.renderAfterTime = this._options.captureAfterTime;
   }
   this._options.server = this._options.server || {};
+  this._options.browserProxyServer = this._options.browserProxyServer || {};
   this.rendererOptions = Object.assign(this._options.rendererOptions || {}, rendererOptions);
 
   if (this._options.postProcessHtml) {
@@ -83,7 +74,25 @@ function PrerenderSPAPlugin() {
   }
 }
 
-PrerenderSPAPlugin.prototype.apply = function (compiler) {
+PrerenderSPACdnPlugin.prototype.makeProxy = function (_ref) {
+  var serverPort = _ref.serverPort,
+      browserProxyPort = _ref.browserProxyPort,
+      browserProxyOptions = _ref.browserProxyOptions;
+
+  if (typeof browserProxyOptions === 'function') {
+    browserProxyOptions = browserProxyOptions(serverPort);
+  }
+  browserProxyOptions = browserProxyOptions || {
+    target: `http://localhost:${serverPort}`
+  };
+  var app = express();
+  app.use('/', createProxyMiddleware(browserProxyOptions));
+  this.browserProxyOptions = browserProxyOptions;
+  return app.listen(browserProxyPort);
+  // return httpProxy.createServer(browserProxyOptions).listen(browserProxyPort)
+};
+
+PrerenderSPACdnPlugin.prototype.apply = function (compiler) {
   var _this2 = this;
 
   var compilerFS = compiler.outputFileSystem;
@@ -99,7 +108,7 @@ PrerenderSPAPlugin.prototype.apply = function (compiler) {
 
   var afterEmit = function () {
     var _ref2 = _asyncToGenerator( /*#__PURE__*/_regenerator2.default.mark(function _callee(compilation, done) {
-      var serverPort, browserProxyPort, errProxy, msg, PrerendererInstance;
+      var serverPort, browserProxyPort, serverProxy, errProxy, msg, PrerendererInstance;
       return _regenerator2.default.wrap(function _callee$(_context) {
         while (1) {
           switch (_context.prev = _context.next) {
@@ -122,33 +131,50 @@ PrerenderSPAPlugin.prototype.apply = function (compiler) {
             case 7:
               serverPort = _context.t0;
 
-              if (typeof _this2._options.server === 'function') {
-                _this2._options.server = _this2._options.server(serverPort);
+              if (typeof _this2._options.server.proxy === 'function') {
+                serverProxy = _this2._options.server.proxy(serverPort);
               } else {
-                _this2._options.server.port = serverPort;
+                serverProxy = _this2._options.server.proxy;
               }
-              // if (this._options.cdnHost) {
-              PortFinder.basePort = serverPort + 1;
-              _context.next = 12;
-              return PortFinder.getPortPromise();
+              if (serverProxy) {
+                _this2._options.server = { port: serverPort, proxy: serverProxy };
+              } else {
+                _this2._options.server = { port: serverPort };
+              }
 
-            case 12:
-              browserProxyPort = _context.sent;
+              if (!_this2._options.browserProxyServer.port) {
+                _context.next = 14;
+                break;
+              }
 
-              _this2.rendererOptions.args = [`--proxy-server=localhost:${browserProxyPort}`];
-              _this2.browserProxyServer = makeProxy({ serverPort, browserProxyPort, browserProxyOptions: _this2._options.browserProxyOptions });
-              _this2._options.renderer = new PuppeteerRenderer(Object.assign({}, { headless: true }, _this2.rendererOptions));
-              // }
-              // this._options.renderer = new PuppeteerRenderer(Object.assign({}, { headless: true }, this.rendererOptions))
-              _context.next = 27;
+              browserProxyPort = _this2._options.browserProxyServer.port;
+              _context.next = 18;
               break;
 
+            case 14:
+              PortFinder.basePort = serverPort + 1;
+              _context.next = 17;
+              return PortFinder.getPortPromise();
+
+            case 17:
+              browserProxyPort = _context.sent;
+
             case 18:
-              _context.prev = 18;
+              _this2.browserProxyServer = _this2.makeProxy({ serverPort, browserProxyPort, browserProxyOptions: _this2._options.browserProxyServer.proxy });
+              if (_this2._options.browserProxyServer.bypassList) {
+                _this2.rendererOptions.args = [`--proxy-server=127.0.0.1:${browserProxyPort}`, `--proxy-bypass-list=${_this2._options.browserProxyServer.bypassList}`];
+              } else {
+                _this2.rendererOptions.args = [`--proxy-server=localhost:${browserProxyPort}`];
+              }
+              _this2._options.renderer = new PuppeteerRenderer(Object.assign({}, { headless: true }, _this2.rendererOptions));
+              _context.next = 31;
+              break;
+
+            case 23:
+              _context.prev = 23;
               _context.t1 = _context['catch'](1);
 
               errProxy = true;
-              console.log(_context.t1);
               _this2.browserProxyServer && _this2.browserProxyServer.close();
               msg = '[prerender-spa-cdn-plugin] Unable to start proxy server!';
 
@@ -156,15 +182,15 @@ PrerenderSPAPlugin.prototype.apply = function (compiler) {
               compilation.errors.push(new Error(msg));
               done();
 
-            case 27:
+            case 31:
               if (!errProxy) {
-                _context.next = 29;
+                _context.next = 33;
                 break;
               }
 
               return _context.abrupt('return');
 
-            case 29:
+            case 33:
               PrerendererInstance = new Prerenderer(_this2._options);
 
 
@@ -254,12 +280,12 @@ PrerenderSPAPlugin.prototype.apply = function (compiler) {
                 done();
               });
 
-            case 31:
+            case 35:
             case 'end':
               return _context.stop();
           }
         }
-      }, _callee, _this2, [[1, 18]]);
+      }, _callee, _this2, [[1, 23]]);
     }));
 
     return function afterEmit(_x, _x2) {
@@ -275,6 +301,6 @@ PrerenderSPAPlugin.prototype.apply = function (compiler) {
   }
 };
 
-PrerenderSPAPlugin.PuppeteerRenderer = PuppeteerRenderer;
+PrerenderSPACdnPlugin.PuppeteerRenderer = PuppeteerRenderer;
 
-module.exports = PrerenderSPAPlugin;
+module.exports = PrerenderSPACdnPlugin;
