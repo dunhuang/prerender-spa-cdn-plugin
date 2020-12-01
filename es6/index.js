@@ -104,7 +104,6 @@ PrerenderSPACdnPlugin.prototype.apply = function (compiler) {
         this.rendererOptions.args = [`--proxy-server=localhost:${browserProxyPort}`]
       }
       this._options.renderer = new PuppeteerRenderer(Object.assign({}, { headless: true }, this.rendererOptions))
-      console.log(this._options)
     } catch (err) {
       errProxy = true
       this.browserProxyServer && this.browserProxyServer.close()
