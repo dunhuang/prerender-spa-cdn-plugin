@@ -1,6 +1,6 @@
 {
   "name": "prerender-spa-cdn-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Upgraded version of prerender-spa-plugin, provides zero-config support of CDN. Flexible, framework-agnostic static site generation for sites and SPAs built with webpack.",
   "license": "MIT",
   "main": "index.js",
