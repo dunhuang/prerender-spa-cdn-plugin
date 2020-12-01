@@ -8,10 +8,9 @@ module.exports = {
       config.plugins.push(new PrerenderSpaCdnPlugin({
         staticDir: path.join(__dirname, 'dist'),
         routes: ['/', '/about'],
-        server: function (serverPort) {
-          return {
-            port: serverPort,
-            proxy: {
+        server: {
+          proxy: function (serverPort) {
+            return {
               '/static': {
                 target: `http://localhost:${serverPort}`,
                 pathRewrite: { '^/static': '' }

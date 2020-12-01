@@ -8,7 +8,9 @@ module.exports = {
       config.plugins.push(new PrerenderSpaCdnPlugin({
         staticDir: path.join(__dirname, 'dist'),
         routes: ['/', '/about'],
-        browserProxyBypassList: 'api.abcd.com',
+        browserProxyServer: {
+          bypassList: 'api.abcd.com'
+        },
         rendererOptions: {
           maxConcurrentRoutes: 1,
           injectProperty: '__PRERENDER_INJECTED',

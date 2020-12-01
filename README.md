@@ -1,16 +1,18 @@
 ## About prerender-spa-cdn-plugin
 
+`prerender-spa-cdn-plugin` is an webpack plugin derived from [`prerender-spa-plugin`](https://github.com/chrisvfritz/prerender-spa-plugin/). 
 
-`prerender-spa-cdn-plugin` is an upgraded version of `prerender-spa-plugin` (https://github.com/chrisvfritz/prerender-spa-plugin/blob/master/README.md), which is a popular plugin which helps to provide a simple prerendering solution for SPA website.
-`prerender-spa-cdn-plugin` provides a zero-config way to solve the issure that prerender-spa-plugin has bad support for CDN-like public-path (https://github.com/chrisvfritz/prerender-spa-plugin/issues/114).
-
+`prerender-spa-plugin` is a popular plugin which helps to provide a simple prerendering solution for SPA website. Although `prerender-spa-plugin` is very convenient to configure and popular used, it has bad support for CDN-like public-path as shown in [issue#114](https://github.com/chrisvfritz/prerender-spa-plugin/issues/114), I wrote `prerender-spa-cdn-plugin` and try to present a zero-config way to make it easier.
 
 ## How it works
 
-Under online environment, public-path of a website is normally an CDN host such as `//cdn.abcd.com`. 
-While, usually prerender process is handled in an integraton mation before uploading static files to CDN machines. 
+In online environment, the host of static files in a website is usually different from website's main host. Normally static files use CDN host such as `//static-cdn.abc.com`. The problem is when the integration machine is running prerendering process, the needed static files have not been uploaded to CDN servers yet, which makes prerendering failed.
 
-`prerender-spa-cdn-plugin` generates a proxy server and which will be configured to puppeteer as its forward proxy server while visiting websites. In this way, all http request to CDN host will be directed from forward proxy server to local static server. Then we don't need to do any other config such as adding new host or local webserver to support visiting CDN locally.
+There are several solutions. 1, Upload files to CDN before start prerendering, which is unreasonable or unavailable in many circumstances. 2, Set  static files 2, Mock CDN host and server in the integration machine during prerendering. This plugin follows the latter.
+
+Before starting to prerender, `prerender-spa-cdn-plugin` generates a forward proxy server which will be configured as the headless browser's proxy server. Then all traffic is directed to forward proxy server for both CDN hostname and website's main hostname. In this way we don't need to do any further configuration such as editing local etc/hosts or launching a local web server to support visiting static files with CDN hostname locally.
+
+`prerender-spa-cdn-plugin` uses [puppeteer](https://github.com/GoogleChrome/puppeteer) as the only kind of headless browser.
 
 ## Documentation
 
@@ -23,28 +25,22 @@ While, usually prerender process is handled in an integraton mation before uploa
 | indexPath | String | No | `staticDir/index.html` | The index file to fall back on for SPAs. |
 | postProcess | Function(Object context): [Object \| Promise] | No | None | See the [Using the postProcess Option](#using-the-postprocess-option) section. |
 | minify | Object | No | None | Minifies the resulting HTML using [html-minifier](https://github.com/kangax/html-minifier). Full list of options available [here](https://github.com/kangax/html-minifier#options-quick-reference). |
-| server | Object | Function(String serverPort): Object | No | None | App server configuration options (See below) |
+| server | Object | No | None | App server configuration options (See below) |
 | renderer | Renderer Instance or Configuration Object | No | `new PuppeteerRenderer()` | The renderer you'd like to use to prerender the app. It's recommended that you specify this, but if not it will default to `@prerenderer/renderer-puppeteer`. |
-|browserProxyOptions | Object | Function(String serverPort, String browserProxyPort): Object | No | {target: `http://localhost:${serverPort}`} | The options of forward-proxy used by puppeteer. (See below)|
-|browserProxyBypassList| String | No | None | The '--proxy-bypass-list' args being set before launching puppeteer. (See below)|
+|browserProxyServer | Object | No | None | The configuration of forward-proxy used by puppeteer. (See below)|
 
 #### Server Options
-
-Server option could be Object or Function.
-
-If server is an object: 
 
 | Option | Type    | Required? | Default                    | Description                            |
 |--------|---------|-----------|----------------------------|----------------------------------------|
 | port   | Integer | No        | First free port after 8000 | The port for the app server to run on. |
-| proxy  | Object  | No        | No proxying                | Proxy configuration. Has the same signature as [webpack-dev-server](https://github.com/webpack/docs/wiki/webpack-dev-server#proxy) |
+| proxy  | Object\|Function(String serverPort): Object  | No        | No proxying                | Proxy configuration. Has the same signature as [webpack-dev-server](https://github.com/webpack/docs/wiki/webpack-dev-server#proxy) |
 
-If server is a function, it passes `serverPort: String` as its only parameter and returns an object whose pattern is as shown in upper table. `serverPort` is the port number found by `port-finder` 。
+`proxy` could be a function whenever `serverPort` is the free port autodetected by package `port-finder`. `serverPort: String` is function's single parameter and the function returns an object whose pattern is as shown in upper table. 
 
 ```
-server: function(serverPort){
-  return {
-    port: serverPort,
+server: {
+  proxy: function(serverPort){
     '/static': {
       target: `http://localhost:${serverPort}`,
       pathRewrite: { '^/static': '' }
@@ -52,23 +48,26 @@ server: function(serverPort){
   }
 }
 ```
-#### BrowserProxyBypassList Option
 
-The '--proxy-bypass-list' args being set before launching puppeteer, defaults to ''. See [chromium docs of network-settings] (https://www.chromium.org/developers/design-documents/network-settings)
+#### BrowserProxyServer Option
 
-#### BrowserProxyOptions Option
+| Option | Type    | Required? | Default                    | Description                            |
+|--------|---------|-----------|----------------------------|----------------------------------------|
+| port   | Integer | No        | First free port after server.port | The port for the forward proxy server to run on. |
+| bypassList | String | No | None | List of hostnames which should be bypassed by forward proxy server. In principle it configures puppeteer' args with[`--proxy-bypass-list`](https://www.chromium.org/developers/design-documents/network-settings)
+| proxy  | Object\|Function(String serverPort): Object  | No        | proxy: {target: `http://localhost:${serverPort}`}    | Forward proxy configuration. Has the same signature as [webpack-dev-server](https://github.com/webpack/docs/wiki/webpack-dev-server#proxy) |
 
-The options of forward-proxy used by puppeteer. BrowserProxyOptions option could be Object or Function, defaults to none. 
 
-If browserProxyOptions is an object, it is a configure with the same signature as [webpack-dev-server](https://github.com/webpack/docs/wiki/webpack-dev-server#proxy).
-
-If browserProxyOptions is a function, it passes `serverPort: String, browserProxyPort: String` as its parameters and returns an object as [webpack-dev-server](https://github.com/webpack/docs/wiki/webpack-dev-server#proxy) . `serverPort` is the renderer's server port while `browserProxyPort` is the forward-proxy's port。
+If proxy is a function, it passes `serverPort: String` as its parameters and returns an object as [webpack-dev-server](https://github.com/webpack/docs/wiki/webpack-dev-server#proxy). `serverPort` is the app server's port specified by `server.port` or autodetected by package `port-finder`.
 
 ```
-browserProxyOptions: function(serverPort, browserProxyPort){
-  return {
-    target: `http://localhost:${browserProxyPort}`,
-  }
+browserProxyOptions: {
+  proxy: function(serverPort){
+    return {
+      target: `http://localhost:${serverPort}`,
+    }
+  },
+  bypassList: 'api.abcd.com'
 }
 ```
 
@@ -115,11 +114,6 @@ postProcess(context) {
 }
 ```
 
-#### Vue.js Notes
-If you are having issues prerendering with Vue.js, try adding the [`data-server-rendered="true"`](https://ssr.vuejs.org/guide/hydration.html) attribute to your root app element. This will cause Vue to treat your current page as an already-rendered app and update it rather than completely rerendering the whole tree. You can add the attribute using `postProcess` or by manipulating the DOM with JavaScript prior prerendering with `renderAfterDocumentEvent`.
-
----
-
 ### `@prerenderer/renderer-puppeteer` options
 
 | Option                                                                                                                 | Type                                                                                                                                       | Required? | Default                | Description                                                                                                                                                                                                                                                           |
@@ -140,7 +134,7 @@ If you are having issues prerendering with Vue.js, try adding the [`data-server-
 ## Basic Usage
 
 Basic usage is similiar to `prerender-spa-plugin`
-ex, when cdn host is as `//cdn.abcd.com`, plugin is without special configure.
+ex, cdn host is `//cdn.abcd.com`, plugin is without special configure.
 
 ```
 const PrerenderSpaCdnPlugin = require('prerender-spa-cdn-plugin')
@@ -162,15 +156,14 @@ new PrerenderSpaCdnPlugin({
 
 ### 1、cdn host with pathname
 
-ex, cdn host is `//cdn.abcd.com/static/`, `server` should be added into the option to configure a pathname rewrite. In this way, `server` option may be a function cause serverPort is not defined by developer but `port-finder`.
+ex, cdn host is `//cdn.abcd.com/static/`, `server` should be added into the option to configure a pathname rewrite. In this way, `server.proxy` option may be a function cause serverPort is not specified by developer but `port-finder`.
 ```
 new PrerenderSpaCdnPlugin({
   staticDir: path.join(__dirname, 'dist'),
   routes: ['/', '/about'],
-  server: function (serverPort) {
-    return {
-      port: serverPort,
-      proxy: {
+  server: 
+    proxy: function (serverPort) {
+      return {
         '/static': {
           target: `http://localhost:${serverPort}`,
           pathRewrite: { '^/static': '' }
@@ -197,7 +190,9 @@ ex, api host is 'api.abcd.com'
 new PrerenderSpaCdnPlugin({
   staticDir: path.join(__dirname, 'dist'),
   routes: ['/', '/about'],
-  browserProxyBypassList: 'api.abcd.com',
+  browserProxyServer: {
+    bypassList: 'api.abcd.com'
+  },
   rendererOptions: {
     maxConcurrentRoutes: 1,
     injectProperty: '__PRERENDER_INJECTED',

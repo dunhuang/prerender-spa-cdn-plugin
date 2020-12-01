@@ -45,6 +45,7 @@ function PrerenderSPACdnPlugin (...args) {
     rendererOptions.renderAfterTime = this._options.captureAfterTime
   }
   this._options.server = this._options.server || {}
+  this._options.browserProxyServer = this._options.browserProxyServer || {}
   this.rendererOptions = Object.assign(this._options.rendererOptions || {}, rendererOptions)
 
   if (this._options.postProcessHtml) {
@@ -54,7 +55,7 @@ function PrerenderSPACdnPlugin (...args) {
 
 PrerenderSPACdnPlugin.prototype.makeProxy = function ({ serverPort, browserProxyPort, browserProxyOptions }) {
   if (typeof browserProxyOptions === 'function') {
-    browserProxyOptions = browserProxyOptions(serverPort, browserProxyPort)
+    browserProxyOptions = browserProxyOptions(serverPort)
   }
   browserProxyOptions = browserProxyOptions || {
     target: `http://localhost:${serverPort}`
@@ -77,23 +78,33 @@ PrerenderSPACdnPlugin.prototype.apply = function (compiler) {
   }
 
   const afterEmit = async (compilation, done) => {
-    var serverPort; var browserProxyPort; var errProxy = null
+    var serverPort; var browserProxyPort; var serverProxy; var errProxy = null
     try {
       serverPort = this._options.server.port || await PortFinder.getPortPromise()
-      if (typeof this._options.server === 'function') {
-        this._options.server = this._options.server(serverPort)
+      if (typeof this._options.server.proxy === 'function') {
+        serverProxy = this._options.server.proxy(serverPort)
       } else {
-        this._options.server.port = serverPort
+        serverProxy = this._options.server.proxy
       }
-      PortFinder.basePort = serverPort + 1
-      browserProxyPort = await PortFinder.getPortPromise()
-      this.browserProxyServer = this.makeProxy({ serverPort, browserProxyPort, browserProxyOptions: this._options.browserProxyOptions })
-      if (this._options.browserProxyBypassList) {
-        this.rendererOptions.args = [`--proxy-server=127.0.0.1:${browserProxyPort}`, `--proxy-bypass-list=${this._options.browserProxyBypassList}`]
+      if (serverProxy) {
+        this._options.server = { port: serverPort, proxy: serverProxy }
+      } else {
+        this._options.server = { port: serverPort }
+      }
+      if (this._options.browserProxyServer.port) {
+        browserProxyPort = this._options.browserProxyServer.port
+      } else {
+        PortFinder.basePort = serverPort + 1
+        browserProxyPort = await PortFinder.getPortPromise()
+      }
+      this.browserProxyServer = this.makeProxy({ serverPort, browserProxyPort, browserProxyOptions: this._options.browserProxyServer.proxy })
+      if (this._options.browserProxyServer.bypassList) {
+        this.rendererOptions.args = [`--proxy-server=127.0.0.1:${browserProxyPort}`, `--proxy-bypass-list=${this._options.browserProxyServer.bypassList}`]
       } else {
         this.rendererOptions.args = [`--proxy-server=localhost:${browserProxyPort}`]
       }
       this._options.renderer = new PuppeteerRenderer(Object.assign({}, { headless: true }, this.rendererOptions))
+      console.log(this._options)
     } catch (err) {
       errProxy = true
       this.browserProxyServer && this.browserProxyServer.close()

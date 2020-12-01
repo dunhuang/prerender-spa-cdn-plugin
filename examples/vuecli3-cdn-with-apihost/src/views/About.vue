@@ -16,7 +16,7 @@ export default {
   },
   async mounted () {
     try {
-      const data = await axios.get('https://api.abcd.com')
+      const data = await axios.get('http://api.abcd.com')
       this.msg = data
     } catch (e) {
       this.msg = e.message
