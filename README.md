@@ -1,8 +1,16 @@
+<div align="center">
+
+[![NPM](https://nodei.co/npm/prerender-spa-cdn-plugin.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/prerender-spa-cdn-plugin/)
+
+</div>
+
+
 ## About prerender-spa-cdn-plugin
 
 `prerender-spa-cdn-plugin` is an webpack plugin derived from [`prerender-spa-plugin`](https://github.com/chrisvfritz/prerender-spa-plugin/). 
 
 `prerender-spa-plugin` is a popular plugin which helps to provide a simple prerendering solution for SPA website. Although `prerender-spa-plugin` is very convenient to configure and popular used, it has bad support for CDN-like public-path as shown in [issue#114](https://github.com/chrisvfritz/prerender-spa-plugin/issues/114), I wrote `prerender-spa-cdn-plugin` and try to present a zero-config way to make it easier.
+
 
 ## How it works
 
@@ -18,6 +26,11 @@ Before starting to prerender, `prerender-spa-cdn-plugin` generates a forward pro
 
 Basic usage is similiar to `prerender-spa-plugin`
 ex, cdn host is `//cdn.abcd.com`, plugin is without special configure.
+
+```
+npm install prerender-spa-cdn-plugin
+```
+
 
 ```
 const PrerenderSpaCdnPlugin = require('prerender-spa-cdn-plugin')
