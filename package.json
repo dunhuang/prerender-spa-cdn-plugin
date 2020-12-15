@@ -1,6 +1,6 @@
 {
   "name": "prerender-spa-cdn-plugin",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Upgraded version of prerender-spa-plugin, provides zero-config support of CDN. Flexible, framework-agnostic static site generation for sites and SPAs built with webpack.",
   "license": "MIT",
   "main": "index.js",
@@ -23,10 +23,10 @@
     "email": "shiyh2012@foxmail.com",
     "url": "https://github.com/dunhuang"
   },
-  "repository": "chrisvfritz/prerender-spa-plugin",
+  "repository": "dunhuang/prerender-spa-cdn-plugin",
   "bugs": {
-    "url": "https://github.com/chrisvfritz/prerender-spa-plugin/issues",
-    "email": "chrisvfritz@gmail.com"
+    "url": "https://github.com/dunhuang/prerender-spa-cdn-plugin/issues",
+    "email": "shiyh2012@foxmail.com"
   },
   "dependencies": {
     "@prerenderer/prerenderer": "^0.7.2",
